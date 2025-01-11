@@ -1,0 +1,1 @@
+/usr/bin/c++ -fPIC -Wall -Wextra -fPIC -flto -shared  -o SIMULATOR.cpython-310-x86_64-linux-gnu.so CMakeFiles/SIMULATOR.dir/pywrap.cpp.o  ../map/libmap.a ../basic_simulator/libbasic_simulator.a ../map/libmap.a 

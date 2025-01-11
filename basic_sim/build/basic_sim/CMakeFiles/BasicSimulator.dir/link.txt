@@ -1,0 +1,1 @@
+/usr/bin/c++ -Wall -Wextra -fPIC CMakeFiles/BasicSimulator.dir/main.cpp.o -o BasicSimulator  ../utils/map/libmap.a ../utils/basic_simulator/libbasic_simulator.a ../utils/map/libmap.a 
