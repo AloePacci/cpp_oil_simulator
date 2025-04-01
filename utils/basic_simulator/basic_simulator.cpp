@@ -35,6 +35,38 @@ SIMULATOR::SIMULATOR(std::string _filepath, double _dt, double _kw, double _kc, 
     } 
 }
 
+SIMULATOR::SIMULATOR(Eigen::MatrixXi _base_matrix, double _dt, double _kw, double _kc, double _gamma, double _flow, int _number_of_sources, int _max_contamination_value, int _source_fuel, int _random_seed, bool _triangular): dt(_dt),kw(_kw),kc(_kc),gamma(_gamma),flow(_flow),number_of_sources(_number_of_sources), max_contamination_value(_max_contamination_value), source_fuel(_source_fuel), random_seed(_random_seed), triangular(_triangular)
+{
+    mapa = new MAP(_base_matrix);
+    source_points = Eigen::MatrixXi(2,number_of_sources);
+    y = Eigen::VectorXi::LinSpaced(mapa->ncols, 0, mapa->ncols).rowwise().replicate(mapa->nrows);
+    x = Eigen::RowVectorXi::LinSpaced(mapa->nrows, 0, mapa->nrows).colwise().replicate(mapa->ncols);
+    // mapa->print();
+
+    if(random_seed == -1){
+        gen =  std::mt19937(rd());
+        cout << "no seed specified (-1), using random seed" << endl;
+    }else{
+        gen =  std::mt19937(random_seed);
+    }
+
+    #ifdef LOG_EVERYTHING_SIM
+        cout << "found map of " << mapa->ncols << " colums and " << mapa->nrows << " rows" << endl;
+        mapa->print();
+    #endif
+
+
+    // generating 5x5 kernel 
+    double r, s = 2.0 * sigma * sigma; 
+    for (int x = -2; x <= 2; x++) { 
+        for (int y = -2; y <= 2; y++) { 
+            r = sqrt(x * x + y * y); 
+            GKernel[x + 2][y + 2] = (exp(-(r * r) / s)) / (M_PI * s); 
+            max_kernel += GKernel[x + 2][y + 2]; 
+        } 
+    } 
+}
+
 
 void SIMULATOR::reset(int _seed){ 
     if(_seed != -1){

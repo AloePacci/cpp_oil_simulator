@@ -1,6 +1,6 @@
 # Set the project name
 project (basic_simulator)
-
+cmake_minimum_required(VERSION 3.10)
 
 add_library(${PROJECT_NAME} basic_simulator.cpp)
 add_library(utils::basic_simulator ALIAS ${PROJECT_NAME})

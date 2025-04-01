@@ -14,6 +14,7 @@ PYBIND11_MODULE(SIMULATOR, m) {
     m.doc() = "optional module docstring";
     py::class_<SIMULATOR>(m, "SIMULATOR")
     .def(py::init<const std::string &, const double, const double, const double, const double, const double, const int, const int, const int, const int, bool>(),py::arg("_filepath"), py::arg("_dt") = 10., py::arg("_kw") = 0.5, py::arg("_kc") = 1., py::arg("_gamma") = 1., py::arg("_flow") = 50., py::arg("_number_of_sources") = int(3), py::arg("_max_contamination_value") = int(5), py::arg("_source_fuel") = int(1000),  py::arg("_random_seed") = int(-1),  py::arg("_triangular") = false)  
+    .def(py::init<Eigen::MatrixXi &, const double, const double, const double, const double, const double, const int, const int, const int, const int, bool>(),py::arg("base_matrix"), py::arg("_dt") = 10., py::arg("_kw") = 0.5, py::arg("_kc") = 1., py::arg("_gamma") = 1., py::arg("_flow") = 50., py::arg("_number_of_sources") = int(3), py::arg("_max_contamination_value") = int(5), py::arg("_source_fuel") = int(1000),  py::arg("_random_seed") = int(-1),  py::arg("_triangular") = false)  
     .def("step", &SIMULATOR::step, py::call_guard<py::gil_scoped_release>())
     .def("reset", &SIMULATOR::reset, py::arg("_seed") = int(-1), py::call_guard<py::gil_scoped_release>())
     .def("get_normalized_density", &SIMULATOR::get_normalized_density, py::arg("gaussian") = true, py::call_guard<py::gil_scoped_release>())

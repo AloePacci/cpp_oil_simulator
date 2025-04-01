@@ -1,6 +1,6 @@
 # Set the project name
 project (map)
-
+cmake_minimum_required(VERSION 3.10)
 
 add_library(${PROJECT_NAME} map.cpp)
 add_library(utils::map ALIAS ${PROJECT_NAME})

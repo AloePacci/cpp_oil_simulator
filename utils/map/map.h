@@ -21,6 +21,7 @@ private:
 
 public:
     MAP(std::string _filepath);
+    MAP(Eigen::MatrixXi _map);
     std::vector<std::pair<int, std::vector<int>>> map;
     void print() const;
     int ncols;

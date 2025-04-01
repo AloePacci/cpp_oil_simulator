@@ -84,6 +84,7 @@ public:
     Eigen::MatrixXd get_normalized_density(bool gaussian = true);
 
     SIMULATOR(std::string _filepath, double _dt=10, double _kw=0.5, double _kc=1, double _gamma=1, double _flow=1, int _number_of_sources=3, int _max_contamination_value=5, int _source_fuel = 1000, int _random_seed=-1, bool _triangular=false);
+    SIMULATOR(Eigen::MatrixXi _base_matrix, double _dt=10, double _kw=0.5, double _kc=1, double _gamma=1, double _flow=1, int _number_of_sources=3, int _max_contamination_value=5, int _source_fuel = 1000, int _random_seed=-1, bool _triangular=false);
 };
 
 

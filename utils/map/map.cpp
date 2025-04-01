@@ -26,6 +26,22 @@ MAP::MAP(std::string _filepath): mappath(_filepath) // constructor definition
 
 }
 
+MAP::MAP(Eigen::MatrixXi _map) // constructor definition
+{
+    ncols=_map.cols();
+    nrows=_map.rows();
+    for (int col=0; col<ncols;col++){
+        map.push_back({col, std::vector<int> {}});
+        for (int row=0; row< nrows;row++){
+            map.at(col).second.push_back(_map(row,col));
+            if (_map(row,col) ==1)
+                visitable.push_back({row,col});
+        }
+    }
+    mappath.assign("Not provided");
+    mapname.assign("Not provided");
+}
+
 void MAP::print() const // print function definition
 {
     std::cout << "map \"" << mappath << "\"" << std::endl;
