@@ -316,6 +316,8 @@ Eigen::MatrixXd SIMULATOR::get_normalized_density(bool gaussian){
                             kernel-=GKernel[x+2][y+2];
                         else
                             density_d(point.first,point.second)+=((double)density(point.first+x,point.second+y))*GKernel[x+2][y+2]/((double)(max_contamination_value));
+                    }else{
+                        kernel-=GKernel[x+2][y+2];
                     }
                 }
             }
