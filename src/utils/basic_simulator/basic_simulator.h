@@ -5,7 +5,7 @@
 #include <vector>
 #include <string>
 #include "map.h"
-#include <eigen3/Eigen/Dense>
+#include <Eigen/Dense>
 #include <random>
 #include <unistd.h>
 #include <utility> // std::pair

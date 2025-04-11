@@ -19,6 +19,7 @@ ext_modules = [
             pybind11.get_include(True ),
             "src/utils/basic_simulator",
             "src/utils/map",
+            "src/Eigen",
         ],
         language='c++',
         # Example: passing in the version to the compiled code
