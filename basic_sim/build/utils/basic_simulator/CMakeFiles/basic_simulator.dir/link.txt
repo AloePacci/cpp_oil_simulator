@@ -1,2 +1,0 @@
-/usr/bin/ar qc libbasic_simulator.a CMakeFiles/basic_simulator.dir/basic_simulator.cpp.o
-/usr/bin/ranlib libbasic_simulator.a

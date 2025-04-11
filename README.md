@@ -5,9 +5,9 @@
 ## Installation
 Para los paquetes necesarios ver requirements.txt
 
-- Para compilar ejecutar compiler.sh (utlizar el argumento clean si da fallos)
-
-- Ejecutar python "basic_sim_fusion.py"
+- Para compilar ejecutar ```bash
+$ pip install .
+```
 
 ## Authors and acknowledgment
 De no ser por la ayuda de Samuel Yanes Luis esto no habría sido posible.
