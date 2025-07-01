@@ -1,5 +1,5 @@
 #include "map.h"
-#include <filesystem>
+#include <fstream>
 #define assertm(exp, msg) if(!exp){std::cout << "\033[1;31m" <<msg<< "\033[0m" << std::endl; assert(0);}
 using namespace std;
 MAP::MAP(std::string _filepath): mappath(_filepath) // constructor definition
@@ -67,7 +67,8 @@ void MAP::print() const // print function definition
 
 bool MAP::exists() // print function definition
 {
-    return std::filesystem::exists(mappath);
+    std::ifstream file(mappath);
+    return file.good();
 };
 
 
