@@ -50,20 +50,19 @@ jobs:
       env:
         CIBW_ARCHS_MACOS: auto universal2
         CIBW_SKIP: "pp*"
+        CIBW_BEFORE_ALL_LINUX: |
+          if command -v yum &> /dev/null; then
+            yum install -y gcc-c++
+          elif command -v apt-get &> /dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y g++
+          elif command -v apk &> /dev/null; then
+            apk add --no-cache g++
+          else
+            echo "No supported package manager found"
+            exit 1
+          fi
 
-    - name: Install build dependencies
-      run: |
-        if command -v apt-get &> /dev/null; then
-          sudo apt-get update
-          sudo apt-get install -y g++
-        elif command -v yum &> /dev/null; then
-          yum install -y gcc-c++
-        elif command -v apk &> /dev/null; then
-          apk add --no-cache g++
-        else
-          echo "No supported package manager found"
-          exit 1
-        fi
     - name: Verify clean directory
       run: git diff --exit-code
       shell: bash
@@ -79,7 +78,10 @@ jobs:
     name: Upload if release
     needs: [build_wheels, build_sdist]
     runs-on: ubuntu-latest
-    if: github.event_name == 'release' && github.event.action == 'published'
+    permissions:
+      id-token: write
+      contents: read
+    # if: github.event_name == 'release' && github.event.action == 'published'
 
     steps:
     - uses: actions/setup-python@v5

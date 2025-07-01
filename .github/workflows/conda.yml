@@ -16,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [ubuntu-latest, windows-latest, macos-12]
+        platform: [ubuntu-latest, windows-latest, macos-13]
         python-version: ["3.8", "3.10"]
 
     runs-on: ${{ matrix.platform }}
@@ -44,14 +44,25 @@ jobs:
       - name: Setup MSVC
         uses: ilammy/msvc-dev-cmd@v1
 
+      - name: Remove Git for Windows from PATH (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          echo "##[group]Fix PATH"
+          echo "PATH before: $PATH"
+          export PATH=$(echo "$PATH" | tr ':' '\n' | grep -v '/usr/bin' | paste -sd ':' -)
+          echo "PATH after: $PATH"
+          echo "##[endgroup]"
+          conda build conda.recipe
       - name: Install build dependencies
         run: conda install pybind11
+      
 
       - name: Build
+        if: runner.os != 'Windows'
         run: conda build conda.recipe
 
       - name: Install
-        run: conda install -c ${CONDA_PREFIX}/conda-bld/ python_example
+        run: conda install -c ${CONDA_PREFIX}/conda-bld/ oilspillsim
 
       - name: Test
         run: python tests/test.py
