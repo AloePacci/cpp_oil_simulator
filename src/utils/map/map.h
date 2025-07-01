@@ -6,7 +6,7 @@
 #include <cassert>
 #include <fstream>
 #include <unistd.h>
-#include <eigen3/Eigen/Dense>
+#include <Eigen/Dense>
 #include <utility> // std::pair
 #include <stdexcept> // std::runtime_error
 #include <sstream> // std::stringstream
