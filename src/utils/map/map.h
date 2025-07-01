@@ -5,7 +5,11 @@
 #include <string>
 #include <cassert>
 #include <fstream>
+#ifdef _WIN32
+#include <windows.h>
+#else
 #include <unistd.h>
+#endif
 #include <Eigen/Dense>
 #include <utility> // std::pair
 #include <stdexcept> // std::runtime_error

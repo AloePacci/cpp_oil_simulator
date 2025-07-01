@@ -38,6 +38,15 @@ jobs:
       - name: Prepare
         run: conda install conda-build conda-verify
 
+      - name: Install Eigen
+        run: conda install -c conda-forge eigen
+
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Install build dependencies
+        run: conda install pybind11
+
       - name: Build
         run: conda build conda.recipe
 

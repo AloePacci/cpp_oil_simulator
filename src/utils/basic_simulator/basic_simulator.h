@@ -7,11 +7,17 @@
 #include "map.h"
 #include <Eigen/Dense>
 #include <random>
+#ifdef _WIN32
+#include <windows.h>
+#else
 #include <unistd.h>
+#endif
 #include <utility> // std::pair
 #include <stdexcept> // std::runtime_error
 #include <sstream> // std::stringstream
-
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 class SIMULATOR
 {
 private:

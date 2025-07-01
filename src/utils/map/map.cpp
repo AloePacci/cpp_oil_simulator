@@ -67,7 +67,7 @@ void MAP::print() const // print function definition
 
 bool MAP::exists() // print function definition
 {
-    return ( access( mappath.c_str(), F_OK ) != -1 );
+    return std::filesystem::exists(mappath);
 };
 
 
