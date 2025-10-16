@@ -27,6 +27,9 @@ ext_modules = [
     ),
 ]
 
+with open("README.md", "r", encoding="utf-8") as fh:
+    long_description = fh.read()
+
 setup(
     name="oilspillsim",
     version=__version__,
@@ -34,7 +37,8 @@ setup(
     author_email="acasado4@us.es",
     url="https://github.com/AloePacci/cpp_oil_simulator",
     description="First package version of Oil Spill simulator",
-    long_description="",
+    long_description=long_description,
+    long_description_content_type='text/markdown',
     ext_modules=ext_modules,
     extras_require={"test": "pytest"},
     # Currently, build_ext only provides an optional "highest supported C++
