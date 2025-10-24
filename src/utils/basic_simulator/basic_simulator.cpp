@@ -68,7 +68,7 @@ SIMULATOR::SIMULATOR(Eigen::MatrixXi _base_matrix, double _dt, double _kw, doubl
 }
 
 
-void SIMULATOR::reset(int _seed){ 
+void SIMULATOR::reset(int _seed, Eigen::MatrixXi _source_points_pos){ 
     if(_seed != -1){
         random_seed = _seed;
         gen =  std::mt19937(random_seed);
@@ -89,21 +89,37 @@ void SIMULATOR::reset(int _seed){
     //Generate the source points
     std::uniform_int_distribution<> distr(0, mapa->visitable.size()-1); // define the range
     
-    for(int i=0;i<number_of_sources;i++){
-        int index=distr(gen);
-        source_points(0,i)=mapa->visitable[index].first;
-        source_points(1,i)=mapa->visitable[index].second;
+    if (_source_points_pos.size()==0){
+        for(int i=0;i<number_of_sources;i++){
+            int index=distr(gen);
+            source_points(0,i)=mapa->visitable[index].first;
+            source_points(1,i)=mapa->visitable[index].second;
+        }
+    }else{
+        if(_source_points_pos.cols()!=number_of_sources || _source_points_pos.rows()!=2){
+            cout << "bad source points shape " << _source_points_pos.cols() << "x" << _source_points_pos.rows() << " when it should be "<< number_of_sources  << "x2"<< endl;
+            assert(false);
+        }
+        for (int i=0;i<_source_points_pos.cols();i++){
+            bool valid=false;
+            for(auto point: mapa->visitable){
+                if(point.first > mapa->nrows-1 || point.second > mapa->ncols-1){
+                    cout << "bad source point position " << point.first << "," << point.second << " is out of bounds" << endl;
+                    assert(false);
+                }
+                if(point.first == _source_points_pos(0,i) && point.second == _source_points_pos(1,i)){
+                    valid=true;
+                    break;
+                }
+            }
+            if(!valid){
+                cout << "bad source point position " << _source_points_pos(0,i) << "," << _source_points_pos(1,i) << " is not visitable" << endl;
+                assert(false);
+            }
+        }
+        source_points = _source_points_pos;
     }
-    // else{
-    //     source_points = _source_points.transpose();
-    //     for(int i=0; i< source_points.cols();i++){
-    //         std::pair<int, int> item(source_points(0,i), source_points(1,i));
-    //         if (std::find(mapa->visitable.begin(), mapa->visitable.end(), item) == mapa->visitable.end() ){ 
-    //             cout << "forced source point " << item.first << " " << item.second << " is not in a visitable point in the map" << endl;
-    //             assert(false);
-    //         }
-    //     }
-    // }
+
     #ifdef LOG_EVERYTHING_SIM
         cout << "source_points shape" <<source_points.rows()  << "x" << source_points.cols()<< endl;
         cout << "source_points: " <<source_points<< endl;

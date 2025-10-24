@@ -85,7 +85,7 @@ public:
     Eigen::MatrixXd u;
     Eigen::VectorXd wind_speed;
 
-    void reset(int _seed=-1); //these params are for initialization
+    void reset(int _seed=-1, Eigen::MatrixXi _source_points_pos=Eigen::MatrixXi()); //these params are for initialization
     void step();
     Eigen::MatrixXd get_normalized_density(bool gaussian = true);
 

@@ -72,8 +72,9 @@ The `oilspillsim` extension exposes a class named `oilspillsim` (C++ type `SIMUL
   - Main methods:
     - `step()`
       - Advance the simulation by one time step. The GIL is released during execution for performance.
-    - `reset(_seed: int = -1)`
+    - `reset(_seed: int = -1, Eigen::MatrixXi _source_points_pos)`
       - Reset the simulation state. If `_seed` is provided the RNG is seeded for reproducibility. -1 used for random seed.
+      - If `_source_points_pos` is provided, source points will take chosen position, otherwise seed source points will be taken 
     - `get_normalized_density(gaussian: bool = True) -> numpy.ndarray`
       - Return the normalized density matrix (optionally smoothed using a Gaussian kernel if `gaussian=True`).
 
