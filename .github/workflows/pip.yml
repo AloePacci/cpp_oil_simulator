@@ -47,10 +47,10 @@ jobs:
       run: brew install eigen
 
     - name: Add requirements
-      run: python -m pip install --upgrade wheel setuptools
+      run: python -m pip install --upgrade --break-system-packages wheel setuptools
 
     - name: Build and install
-      run: pip install --verbose .
+      run: pip install --break-system-packages --verbose . 
 
     - name: Test
       run: python tests/test.py
@@ -74,7 +74,7 @@ jobs:
     - name: Install pybind11
       # This is required because --no-build-isolation disable dependences
       # installation
-      run: pip install pybind11
+      run: pip install --break-system-packages pybind11 
 
     - name: Build and install
       # --no-build-isolation is required because the vanilla setuptool does not
@@ -82,7 +82,7 @@ jobs:
       # https://github.com/msys2/MINGW-packages/tree/master/mingw-w64-python-setuptools
       # Without those patches build_ext fails with:
       # error: --plat-name must be one of ('win32', 'win-amd64', 'win-arm32', 'win-arm64')
-      run: pip install --no-build-isolation .
+      run: pip install --no-build-isolation --break-system-packages .
 
     - name: Test
       run: python tests/test.py
