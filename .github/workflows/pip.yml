@@ -77,7 +77,7 @@ jobs:
       run: pip install --break-system-packages pybind11 
 
     - name: Install mesonpy
-      run: pacman -S mingw-w64-x86_64-mesonpy
+      run: pacman -S mingw-w64-x86_64-meson-python
 
     - name: Build and install
       # --no-build-isolation is required because the vanilla setuptool does not
