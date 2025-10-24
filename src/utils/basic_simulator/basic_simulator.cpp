@@ -1,4 +1,5 @@
 #include "basic_simulator.h"
+#include <stdexcept>
 using namespace std;
 
 // #define LOG_EVERYTHING_SIM
@@ -97,15 +98,19 @@ void SIMULATOR::reset(int _seed, Eigen::MatrixXi _source_points_pos){
         }
     }else{
         if(_source_points_pos.cols()!=number_of_sources || _source_points_pos.rows()!=2){
-            cout << "bad source points shape " << _source_points_pos.cols() << "x" << _source_points_pos.rows() << " when it should be "<< number_of_sources  << "x2"<< endl;
-            assert(false);
+            char message[100];
+            sprintf(message, "bad source points shape %dx%d when it should be %dx2", _source_points_pos.cols(), _source_points_pos.rows(), number_of_sources);
+            cout << message << endl;
+            throw std::runtime_error(message);
         }
         for (int i=0;i<_source_points_pos.cols();i++){
             bool valid=false;
             for(auto point: mapa->visitable){
                 if(point.first > mapa->nrows-1 || point.second > mapa->ncols-1){
-                    cout << "bad source point position " << point.first << "," << point.second << " is out of bounds" << endl;
-                    assert(false);
+                    char message[100];
+                    sprintf(message, "bad source point position %d,%d is out of bounds", point.first, point.second);
+                    cout << message << endl;
+                    throw std::runtime_error(message);
                 }
                 if(point.first == _source_points_pos(0,i) && point.second == _source_points_pos(1,i)){
                     valid=true;
@@ -113,8 +118,10 @@ void SIMULATOR::reset(int _seed, Eigen::MatrixXi _source_points_pos){
                 }
             }
             if(!valid){
-                cout << "bad source point position " << _source_points_pos(0,i) << "," << _source_points_pos(1,i) << " is not visitable" << endl;
-                assert(false);
+                char message[100];
+                sprintf(message, "bad source point position %d,%d is not visitable", _source_points_pos(0,i), _source_points_pos(1,i));
+                cout << message << endl;
+                throw std::runtime_error(message);
             }
         }
         source_points = _source_points_pos;
@@ -212,7 +219,9 @@ void SIMULATOR::reset(int _seed, Eigen::MatrixXi _source_points_pos){
 
 
 void SIMULATOR::step(){
-    assert(init); //"Environment not initiated!"
+    if(!init) {
+        throw std::runtime_error("Environment not initiated!");
+    }
     //update particles positions
     std::uniform_real_distribution<> distrandom(-2, 2); // define the range
     for(int i=0;i<contamination_position.cols();i++){

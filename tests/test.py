@@ -1,3 +1,3 @@
-import oilspillsim as SIMULATOR
+from oilspillsim import oilspillsim as SIMULATOR 
 
 assert True
