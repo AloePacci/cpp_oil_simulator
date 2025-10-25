@@ -69,7 +69,7 @@ SIMULATOR::SIMULATOR(Eigen::MatrixXi _base_matrix, double _dt, double _kw, doubl
 }
 
 
-void SIMULATOR::reset(int _seed, Eigen::MatrixXi _source_points_pos){ 
+void SIMULATOR::reset(int _seed, Eigen::MatrixXi _source_points_pos, Eigen::MatrixXd _v, Eigen::MatrixXd _u, Eigen::VectorXd _wind_speed, Eigen::MatrixXd _contamination_position){ 
     if(_seed != -1){
         random_seed = _seed;
         gen =  std::mt19937(random_seed);
@@ -135,20 +135,46 @@ void SIMULATOR::reset(int _seed, Eigen::MatrixXi _source_points_pos){
     std::uniform_real_distribution<> dist_wind(-1, 1); // define the range
     
     //generate wind speed
-    wind_speed = Eigen::VectorXd(2);
-    wind_speed << dist_wind(gen),dist_wind(gen);
-    // }else{
-    //     //hardcoded wind??
-    //     wind_speed=wind;
-    // }
+    if(_wind_speed.size()==0){
+        wind_speed = Eigen::VectorXd(2);
+        wind_speed << dist_wind(gen),dist_wind(gen);
+    }else if(_wind_speed.size()==2){
+        wind_speed = _wind_speed;
+    }else{
+        char message[100];
+        sprintf(message, "bad wind speed shape %dx%d when it should be 2x1", _wind_speed.cols(), _wind_speed.rows());
+        cout << message << endl;
+        throw std::runtime_error(message);
+    }
+
     #ifdef LOG_EVERYTHING_SIM
         cout << "wind speed is [" << dt * kw *(wind_speed.transpose()) << "]" <<endl;
     #endif
 
     //initialize
-    contamination_position=source_points.cast<double>();
+    if (_contamination_position.size()!=0){
+        if(_contamination_position.rows()!=2){
+            char message[100];
+            sprintf(message, "bad contamination position shape %dx%d when it should be 2xN", _contamination_position.cols(), _contamination_position.rows());
+            cout << message << endl;
+            throw std::runtime_error(message);
+        }
+        contamination_position=_contamination_position;
+    }else{
+        contamination_position=source_points.cast<double>();
+    }
 
-    if(!triangular){
+    if( _v.size()!=0 || _u.size()!=0){
+        if(_u.cols()!=mapa->ncols || _u.rows()!=mapa->nrows || _v.cols()!=mapa->ncols || _v.rows()!=mapa->nrows)
+        {
+            char message[100];
+            sprintf(message, "bad u or v shape %dx%d  %dx%d when it should be %dx%d", _u.cols(), _u.rows(), _v.cols(), _v.rows(), mapa->ncols, mapa->nrows);
+            cout << message << endl;
+            throw std::runtime_error(message);
+        }
+        u=_u;
+        v=_v;
+    }else if(!triangular){
         //Random current vector field
         std::uniform_int_distribution<> distr_mapx(0,mapa->ncols-1); // define the range
         std::uniform_int_distribution<> distr_mapy(0,mapa->nrows-1); // define the range
@@ -160,15 +186,6 @@ void SIMULATOR::reset(int _seed, Eigen::MatrixXi _source_points_pos){
         Eigen::MatrixXd aux2=(y-y0).cast<double>();
         u=(aux1*(EIGEN_PI/distr2(gen))).array().sin()*((aux2*(M_PI/distr2(gen))).array().cos());
         v=-(aux1*(EIGEN_PI/distr2(gen))).array().cos()*((aux2*(M_PI/distr2(gen))).array().sin());
-        // }else{
-        //     // if(_u.cols()!=mapa->ncols || _u.rows()!=mapa->nrows || _v.cols()!=mapa->ncols || _v.rows()!=mapa->nrows)
-        //     // {
-        //     //     cout << "bad u or v shape " << _u.cols() << "x" << _u.rows() << "  " <<  _v.cols() << "x" << _v.rows() << " when it should be "<< mapa->ncols  << " " << mapa->nrows<< endl;
-        //     //     assert(false);
-        //     // }
-        //     u=_u;
-        //     v=_v;
-        // }
     }else{ //currents generated from start point
         u = Eigen::MatrixXd::Constant(mapa->ncols, mapa->nrows,0);
         v = Eigen::MatrixXd::Constant(mapa->ncols, mapa->nrows,0);
@@ -187,7 +204,6 @@ void SIMULATOR::reset(int _seed, Eigen::MatrixXi _source_points_pos){
                         u(m,n)=triangular_magnitude*(m-yt)/pow(abs(m-yt),triangular_dilution);
                     }
                 }
-
             }
         }
     }

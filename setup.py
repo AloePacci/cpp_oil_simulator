@@ -6,7 +6,7 @@ import sys, re
 import setuptools
 import pybind11
 
-__version__ = "0.0.2"
+__version__ = "0.0.3"
 
 ext_modules = [
     Pybind11Extension(
