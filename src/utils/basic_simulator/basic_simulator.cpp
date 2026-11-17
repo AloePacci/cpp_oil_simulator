@@ -137,7 +137,10 @@ void SIMULATOR::reset(int _seed, Eigen::MatrixXi _source_points_pos, Eigen::Matr
     //generate wind speed
     if(_wind_speed.size()==0){
         wind_speed = Eigen::VectorXd(2);
-        wind_speed << dist_wind(gen),dist_wind(gen);
+        {   // explicit draw order (first draw -> component 1), as the PyPI 0.0.1 wheel: see draw2()
+            double w1 = dist_wind(gen), w0 = dist_wind(gen);
+            wind_speed << w0, w1;
+        }
     }else if(_wind_speed.size()==2){
         wind_speed = _wind_speed;
     }else{
@@ -163,6 +166,17 @@ void SIMULATOR::reset(int _seed, Eigen::MatrixXi _source_points_pos, Eigen::Matr
     }else{
         contamination_position=source_points.cast<double>();
     }
+
+    // dynamic extensions: own generator (does not touch `gen`), prevailing wind, continuous source state
+    gen_dyn = (random_seed == -1) ? std::mt19937(rd()) : std::mt19937((unsigned int)random_seed ^ 0x9E3779B9u);
+    wind_mean = wind_speed;
+    source_pos = source_points.cast<double>();
+    source_heading = Eigen::VectorXd(number_of_sources);
+    {
+        std::uniform_real_distribution<> dist_head(-M_PI, M_PI);
+        for (int i = 0; i < number_of_sources; i++) source_heading(i) = dist_head(gen_dyn);
+    }
+    evaporable.assign(contamination_position.cols(), 1);    // also for user-given contamination positions
 
     if( _v.size()!=0 || _u.size()!=0){
         if(_u.cols()!=mapa->ncols || _u.rows()!=mapa->nrows || _v.cols()!=mapa->ncols || _v.rows()!=mapa->nrows)
@@ -243,7 +257,7 @@ void SIMULATOR::step(){
     for(int i=0;i<contamination_position.cols();i++){
         //compute components of the particle movement
         Eigen::VectorXd v_random = Eigen::VectorXd(2);
-        v_random << distrandom(gen)*gamma,distrandom(gen)*gamma;
+        v_random = draw2(distrandom) * (gamma * diffusion_scale());
         // else{
         //     v_random = _random.row(i)*gamma;
         // }
@@ -266,7 +280,8 @@ void SIMULATOR::step(){
             if(density((int)contamination_position(0,i),(int)contamination_position(1,i)) <0){
                 cout << "something weird happened, erased particle where should be none, move out at " << step_counter  << contamination_position.col(i).transpose() << endl;
             }
-            this->removeColumn(contamination_position,i);
+            this->removeParticle(i);
+            if (fix_removal_skip) { i--; continue; }   // the next particle moved into column i: process it too
         }
         else if ( mapa->map.at((int)vnew(1)).second[(int)vnew(0)] ==1){ //if position is not visitable, position wont be updated
             density((int)contamination_position(0,i),(int)contamination_position(1,i))--; //update density and position
@@ -282,13 +297,16 @@ void SIMULATOR::step(){
             density((int)contamination_position(0,i),(int)contamination_position(1,i))++;
         }
     }
+    if (decay_rate > 0) step_decay();        // decay / evaporation of the existing particles
     //generate new particles
     for(int i=0;i<source_points.cols();i++){
         if(source_fuel>0){
-            flow_remainder+=flow;
-            while(flow_remainder*dt>1 && source_fuel>0){ //generate as many particles as flow says
+            // original: ~flow particles per STEP (whatever dt). emission_dt_ref > 0: flow is a rate per unit of TIME,
+            // particles per step = flow * dt / emission_dt_ref (same mean rate as the original at dt = emission_dt_ref)
+            flow_remainder += (emission_dt_ref > 0) ? (float)(flow * dt / emission_dt_ref) : (float)flow;
+            while(((emission_dt_ref > 0) ? (flow_remainder >= 1) : (flow_remainder*dt>1)) && source_fuel>0){ //generate as many particles as flow says
                 Eigen::VectorXd v_random = Eigen::VectorXd(2);
-                v_random << distrandom(gen)*gamma,distrandom(gen)*gamma;
+                v_random = draw2(distrandom) * (gamma * diffusion_scale());
                 // else{
                 //     v_random = _random.row(i+contamination_position.cols())*gamma;
                 // }
@@ -319,12 +337,19 @@ void SIMULATOR::step(){
                     vnew= get_closest_neighbourgh(vnew);//look for inmediate position next to it if it is full
                 }
                 contamination_position.col(contamination_position.cols()-1)=vnew;
+                {   // evaporable flag of the new particle (extra draw only when decay with a residual fraction is on)
+                    std::uniform_real_distribution<> u01(0.0, 1.0);
+                    bool flag = (decay_rate > 0 && evaporable_fraction < 1.0) ? (u01(gen_dyn) < evaporable_fraction) : true;
+                    evaporable.push_back(flag ? 1 : 0);
+                }
                 density((int)contamination_position(0,contamination_position.cols()-1),(int)contamination_position(1,contamination_position.cols()-1))++;
                 source_fuel--;
                 flow_remainder--;
             }
         }
     }
+    if (source_speed > 0 || source_drift > 0) step_sources();   // move the plume origin for the next step
+    if (wind_variability > 0) step_wind();                      // wind for the next step
     step_counter++;
 }
 
@@ -405,3 +430,120 @@ Eigen::VectorXd SIMULATOR::get_closest_neighbourgh(Eigen::VectorXd position){
 }
 
 //TODO: check integrity of data
+
+////////////////////////////////////////////////////////////////////////////////
+///////////////////////////// DYNAMIC EXTENSIONS ///////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+Eigen::VectorXd SIMULATOR::draw2(std::uniform_real_distribution<> &d){
+    // The PyPI 0.0.1 wheel evaluates `v << d(gen), d(gen)` right to left (GCC 10, pre-C++17 rules): the FIRST draw
+    // lands in component 1. Written explicitly so that the result does not depend on the compiler / standard.
+    double r1 = d(gen);
+    double r0 = d(gen);
+    Eigen::VectorXd out(2);
+    out << r0, r1;
+    return out;
+}
+
+double SIMULATOR::diffusion_scale() const {
+    // Brownian motion: displacement std grows with sqrt(dt). dt_ref = the dt at which gamma was tuned.
+    return diffusion_dt_ref > 0 ? std::sqrt(dt / diffusion_dt_ref) : 1.0;
+}
+
+void SIMULATOR::removeParticle(unsigned int i){
+    removeColumn(contamination_position, i);
+    if (i < evaporable.size()) evaporable.erase(evaporable.begin() + i);
+}
+
+bool SIMULATOR::visitable_cell(double r, double c) const {
+    if ((int)r < 0 || (int)c < 0 || (int)r > mapa->nrows - 1 || (int)c > mapa->ncols - 1 || r < 0 || c < 0) return false;
+    return mapa->map.at((int)c).second[(int)r] == 1;
+}
+
+void SIMULATOR::set_dynamics(double _wind_variability, double _wind_relaxation, double _wind_max, double _source_speed,
+                             double _source_turn, double _source_drift, double _decay_rate, double _evaporable_fraction,
+                             double _diffusion_dt_ref, double _emission_dt_ref, bool _fix_removal_skip){
+    if (_wind_variability < 0 || _wind_relaxation < 0 || _wind_max <= 0 || _source_speed < 0 || _source_turn < 0 ||
+        _source_drift < 0 || _decay_rate < 0 || _evaporable_fraction < 0 || _evaporable_fraction > 1)
+        throw std::runtime_error("set_dynamics: negative rate/speed, wind_max <= 0 or evaporable_fraction outside [0, 1]");
+    wind_variability = _wind_variability;
+    wind_relaxation = _wind_relaxation;
+    wind_max = _wind_max;
+    source_speed = _source_speed;
+    source_turn = _source_turn;
+    source_drift = _source_drift;
+    decay_rate = _decay_rate;
+    evaporable_fraction = _evaporable_fraction;
+    diffusion_dt_ref = _diffusion_dt_ref;
+    emission_dt_ref = _emission_dt_ref;
+    fix_removal_skip = _fix_removal_skip;
+}
+
+void SIMULATOR::warmup(int n_steps){
+    if (!init) throw std::runtime_error("Environment not initiated! call reset() before warmup()");
+    for (int k = 0; k < n_steps; k++) step();
+}
+
+void SIMULATOR::set_wind(Eigen::VectorXd w, bool also_mean){
+    if (w.size() != 2) throw std::runtime_error("set_wind: wind must have 2 components");
+    wind_speed = w;
+    if (also_mean) wind_mean = w;
+}
+
+void SIMULATOR::set_source_fuel(int fuel){
+    if (fuel < 0) throw std::runtime_error("set_source_fuel: fuel must be >= 0");
+    source_fuel = fuel;
+}
+
+void SIMULATOR::step_wind(){
+    // Ornstein-Uhlenbeck around the prevailing wind (Euler-Maruyama), magnitude capped at wind_max.
+    // Stationary std per component = wind_variability / sqrt(2 * wind_relaxation); correlation time = 1 / wind_relaxation.
+    std::normal_distribution<> n01(0.0, 1.0);
+    double sq = std::sqrt(dt);
+    for (int k = 0; k < 2; k++)
+        wind_speed(k) += wind_relaxation * (wind_mean(k) - wind_speed(k)) * dt + wind_variability * sq * n01(gen_dyn);
+    double m = wind_speed.norm();
+    if (m > wind_max) wind_speed *= wind_max / m;
+}
+
+void SIMULATOR::step_sources(){
+    // Moving plume origin: self-propelled (speed + heading random walk, bounces on land / border)
+    // plus passive drift with the same forcing as the oil (kw * wind + kc * current).
+    std::normal_distribution<> n01(0.0, 1.0);
+    std::uniform_real_distribution<> bounce(-M_PI / 4, M_PI / 4);
+    for (int i = 0; i < source_pos.cols(); i++){
+        Eigen::Vector2d d(0.0, 0.0);
+        if (source_speed > 0){
+            source_heading(i) += source_turn * std::sqrt(dt) * n01(gen_dyn);
+            d += source_speed * dt * Eigen::Vector2d(std::cos(source_heading(i)), std::sin(source_heading(i)));
+        }
+        if (source_drift > 0){
+            int r = (int)source_pos(0, i), c = (int)source_pos(1, i);
+            Eigen::Vector2d forcing(kw * wind_speed(0) + kc * v(c, r), kw * wind_speed(1) + kc * u(c, r));
+            d += source_drift * dt * forcing;
+        }
+        Eigen::Vector2d p = source_pos.col(i) + d;
+        if (visitable_cell(p(0), p(1))){
+            source_pos.col(i) = p;
+        } else {
+            source_heading(i) += M_PI + bounce(gen_dyn);   // turn back (stays in place this step)
+        }
+        source_points(0, i) = (int)source_pos(0, i);
+        source_points(1, i) = (int)source_pos(1, i);
+    }
+}
+
+void SIMULATOR::step_decay(){
+    // Each evaporable particle disappears with probability 1 - exp(-decay_rate * dt) per step (exponential mass loss,
+    // half-life ln2 / decay_rate time units; the non-evaporable fraction is a persistent residue).
+    std::uniform_real_distribution<> u01(0.0, 1.0);
+    double p = 1.0 - std::exp(-decay_rate * dt);
+    for (int i = (int)contamination_position.cols() - 1; i >= 0; i--){
+        if ((size_t)i < evaporable.size() && !evaporable[i]) continue;
+        if (u01(gen_dyn) < p){
+            int r = (int)contamination_position(0, i), c = (int)contamination_position(1, i);
+            if (density(r, c) > 0) density(r, c)--;
+            removeParticle(i);
+        }
+    }
+}

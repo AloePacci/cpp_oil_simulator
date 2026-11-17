@@ -10,12 +10,19 @@
 #define STRINGIFY(x) #x
 #define MACRO_STRINGIFY(x) STRINGIFY(x)
 
+// Module/class name: `oilspillsim` for the pip build (setup.py defines it); the CMake target in
+// src/utils/pywrap/CMakeLists.txt is called SIMULATOR, so the CMake build gets a module named SIMULATOR
+// (the module name must match the file name of the extension for Python to import it).
+#ifndef OSS_MODULE_NAME
+#define OSS_MODULE_NAME SIMULATOR
+#endif
+
 namespace py = pybind11;
 constexpr auto byref = py::return_value_policy::reference_internal;
 
-PYBIND11_MODULE(oilspillsim, m) {
+PYBIND11_MODULE(OSS_MODULE_NAME, m) {
     m.doc() = "optional module docstring";
-    py::class_<SIMULATOR>(m, "oilspillsim")
+    py::class_<SIMULATOR>(m, MACRO_STRINGIFY(OSS_MODULE_NAME))
     .def(py::init<const std::string &, const double, const double, const double, const double, const double, const int, const int, const int, const int, bool>(),py::arg("_filepath"), py::arg("_dt") = 10., py::arg("_kw") = 0.5, py::arg("_kc") = 1., py::arg("_gamma") = 1., py::arg("_flow") = 50., py::arg("_number_of_sources") = int(3), py::arg("_max_contamination_value") = int(5), py::arg("_source_fuel") = int(1000),  py::arg("_random_seed") = int(-1),  py::arg("_triangular") = false)  
     .def(py::init<Eigen::MatrixXi &, const double, const double, const double, const double, const double, const int, const int, const int, const int, bool>(),py::arg("base_matrix"), py::arg("_dt") = 10., py::arg("_kw") = 0.5, py::arg("_kc") = 1., py::arg("_gamma") = 1., py::arg("_flow") = 50., py::arg("_number_of_sources") = int(3), py::arg("_max_contamination_value") = int(5), py::arg("_source_fuel") = int(1000),  py::arg("_random_seed") = int(-1),  py::arg("_triangular") = false)  
     .def("step", &SIMULATOR::step, py::call_guard<py::gil_scoped_release>())
@@ -29,10 +36,33 @@ PYBIND11_MODULE(oilspillsim, m) {
     .def_readonly("u", &SIMULATOR::u, byref)
     .def_readonly("v", &SIMULATOR::v, byref)
     .def_readonly("wind_speed", &SIMULATOR::wind_speed, byref)
+    // ---- v0.1.0: dt-consistent physics by default + optional dynamics (legacy physics: see set_dynamics) ----
+    .def("set_dynamics", &SIMULATOR::set_dynamics,
+         py::arg("wind_variability") = 0.0, py::arg("wind_relaxation") = 1.0 / 30.0, py::arg("wind_max") = 1.4142135623730951,
+         py::arg("source_speed") = 0.0, py::arg("source_turn") = 0.0, py::arg("source_drift") = 0.0,
+         py::arg("decay_rate") = 0.0, py::arg("evaporable_fraction") = 1.0, py::arg("diffusion_dt_ref") = 0.3,
+         py::arg("emission_dt_ref") = 0.3, py::arg("fix_removal_skip") = true,
+         "Configure the dynamics (call after reset; they persist across resets). Calling it resets every option not given "
+         "to its default. Legacy physics of the PyPI 0.0.1 wheel: diffusion_dt_ref=-1, emission_dt_ref=-1, fix_removal_skip=False. "
+         "wind_variability: OU noise of the wind (0 = constant); wind_relaxation: reversion rate to the prevailing wind; "
+         "wind_max: cap on |wind|; source_speed/source_turn: self-propelled moving source (cells/time, rad/sqrt(time)); "
+         "source_drift: source drifts with kw*wind + kc*current; decay_rate: evaporation hazard (1/time); "
+         "evaporable_fraction: fraction of new particles that can evaporate; diffusion_dt_ref > 0: random walk scaled by sqrt(dt/dt_ref); "
+         "emission_dt_ref > 0: emission per unit of time (flow*dt/dt_ref particles per step); "
+         "fix_removal_skip: fix the particle that skipped its step after a removal at the border.")
+    .def("warmup", &SIMULATOR::warmup, py::arg("n_steps"), py::call_guard<py::gil_scoped_release>(),
+         "Run n_steps simulator steps (start the spill before the mission).")
+    .def("set_wind", &SIMULATOR::set_wind, py::arg("wind"), py::arg("also_mean") = true)
+    .def("set_source_fuel", &SIMULATOR::set_source_fuel, py::arg("fuel"))
+    .def("get_source_position", &SIMULATOR::get_source_position)
+    .def_readonly("wind_mean", &SIMULATOR::wind_mean, byref)
+    .def_property_readonly("step_count", &SIMULATOR::step_count)
+    .def_property_readonly("remaining_fuel", &SIMULATOR::remaining_fuel)
+    .def_property_readonly("particle_count", &SIMULATOR::particle_count)
     ;
 #ifdef VERSION_INFO
     m.attr("__version__") = MACRO_STRINGIFY(VERSION_INFO);
 #else
     m.attr("__version__") = "dev";
 #endif
-}
+}

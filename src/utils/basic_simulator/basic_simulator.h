@@ -75,7 +75,52 @@ private:
     bool triangular;
     double triangular_magnitude = 1;
     double triangular_dilution = 1.2;
+
+    ////////////////////////////////////////////////////////////////////////////////
+    ///////////////////// DYNAMIC EXTENSIONS (all OFF by default) //////////////////
+    ////////////////////////////////////////////////////////////////////////////////
+    // v0.1.0: the three time-step corrections (diffusion ∝ sqrt(dt), emission per unit of time, no skipped particle) are
+    // ON by default, with reference dt 0.3. Legacy (bit-identical to the PyPI 0.0.1 wheel for the same seed):
+    // set_dynamics(diffusion_dt_ref=-1, emission_dt_ref=-1, fix_removal_skip=false). The optional dynamics (variable
+    // wind, moving source, decay) are off by default and draw from their own generator (gen_dyn), never from `gen`.
+    std::mt19937 gen_dyn;                 // seeded at reset from random_seed
+    double wind_variability = 0.0;        // OU noise intensity sigma of the wind (sim units / sqrt(time)); 0 = constant wind
+    double wind_relaxation = 1.0 / 30.0;  // OU mean-reversion rate theta towards the prevailing wind (1 / time)
+    double wind_max = 1.4142135623730951; // cap on |wind| (the envelope of the original U(-1,1)^2 draw)
+    double source_speed = 0.0;            // self-propelled source speed (cells / time); 0 = fixed source
+    double source_turn = 0.0;             // heading diffusion of the moving source (rad / sqrt(time))
+    double source_drift = 0.0;            // passive drift of the source with kw*wind + kc*current (0 = none, 1 = like oil)
+    double decay_rate = 0.0;              // decay / evaporation hazard (1 / time): p_remove = 1 - exp(-rate * dt)
+    double evaporable_fraction = 1.0;     // fraction of new particles that can decay (light fraction of the oil)
+    double diffusion_dt_ref = 0.3;        // > 0: random walk scaled by sqrt(dt / diffusion_dt_ref) (Brownian); <= 0: legacy
+    double emission_dt_ref = 0.3;         // > 0: emission per unit TIME (flow*dt/emission_dt_ref particles/step); <= 0: legacy per step
+    bool fix_removal_skip = true;         // true: a particle removed at the border no longer makes the next one skip its step
+
+    Eigen::MatrixXd source_pos;           // continuous source positions (2 x n), source_points = floor(source_pos)
+    Eigen::VectorXd source_heading;       // heading of each moving source (rad)
+    std::vector<char> evaporable;         // per particle, aligned with the columns of contamination_position
+
+    Eigen::VectorXd draw2(std::uniform_real_distribution<> &d);  // 2 draws, first -> component 1 (PyPI wheel order)
+    double diffusion_scale() const;
+    void removeParticle(unsigned int i);  // removeColumn + keeps `evaporable` aligned
+    void step_wind();
+    void step_sources();
+    void step_decay();
+    bool visitable_cell(double r, double c) const;
 public:
+    Eigen::VectorXd wind_mean;            // prevailing wind (OU mean); = initial wind unless set_wind(.., true)
+    int step_count() const { return step_counter; }
+    int remaining_fuel() const { return source_fuel; }
+    int particle_count() const { return (int)contamination_position.cols(); }
+
+    void set_dynamics(double _wind_variability, double _wind_relaxation, double _wind_max, double _source_speed,
+                      double _source_turn, double _source_drift, double _decay_rate, double _evaporable_fraction,
+                      double _diffusion_dt_ref, double _emission_dt_ref, bool _fix_removal_skip);
+    void warmup(int n_steps);             // run n_steps simulator steps (start the spill before the mission)
+    void set_wind(Eigen::VectorXd w, bool also_mean = true);
+    void set_source_fuel(int fuel);       // finite release (puff): emission stops when the fuel runs out
+    Eigen::MatrixXd get_source_position() const { return source_pos; }
+
     Eigen::MatrixXi source_points ;
     Eigen::MatrixXd contamination_position;
     Eigen::MatrixXi density;
@@ -94,4 +139,4 @@ public:
 };
 
 
-#endif
+#endif
