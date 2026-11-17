@@ -1,6 +1,6 @@
 package:
   name: oilspillsim
-  version: 0.0.1
+  version: 0.1.0
 
 source:
   path: ..
@@ -32,5 +32,5 @@ test:
     - python tests/test.py
 
 about:
-  summary: An example project built with pybind11.
+  summary: Oil spill particle simulator (C++ / pybind11) with dt-consistent physics and dynamic extensions.
   license_file: LICENSE

@@ -21,10 +21,11 @@ jobs:
             python-version: "3.7"
           - platform: windows-latest
             python-version: "3.11"
-          - platform: macos-13
-            python-version: "3.7"
-          - platform: macos-13
-            python-version: "3.11"
+          # macos-13 runners were retired (jobs stay queued); macos-latest is arm64 (no Python 3.7 there)
+          - platform: macos-latest
+            python-version: "3.9"
+          - platform: macos-latest
+            python-version: "3.12"
           - platform: ubuntu-latest
             python-version: "3.11"
 
@@ -63,11 +64,13 @@ jobs:
     steps:
     - uses: msys2/setup-msys2@v2
       with:
+        msystem: UCRT64          # MINGW64 is deprecated by setup-msys2
         update: true
         install: >-
-          mingw-w64-x86_64-gcc
-          mingw-w64-x86_64-python-pip
-          mingw-w64-x86_64-python-wheel
+          mingw-w64-ucrt-x86_64-gcc
+          mingw-w64-ucrt-x86_64-python-pip
+          mingw-w64-ucrt-x86_64-python-wheel
+          mingw-w64-ucrt-x86_64-python-numpy
 
     - uses: actions/checkout@v5
 
@@ -77,7 +80,7 @@ jobs:
       run: pip install --break-system-packages pybind11 cython
 
     - name: Install mesonpy
-      run: pacman -S --noconfirm mingw-w64-x86_64-meson-python
+      run: pacman -S --noconfirm mingw-w64-ucrt-x86_64-meson-python
 
     - name: Build and install
       # --no-build-isolation is required because the vanilla setuptool does not
