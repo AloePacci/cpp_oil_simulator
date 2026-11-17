@@ -54,6 +54,12 @@ PYBIND11_MODULE(OSS_MODULE_NAME, m) {
          "Run n_steps simulator steps (start the spill before the mission).")
     .def("set_wind", &SIMULATOR::set_wind, py::arg("wind"), py::arg("also_mean") = true)
     .def("set_source_fuel", &SIMULATOR::set_source_fuel, py::arg("fuel"))
+    .def("set_density", &SIMULATOR::set_density, py::arg("max_per_cell"), py::arg("log_scale") = false,
+         "Crowding cap per cell (a full cell pushes newcomers to a free neighbour) and value that maps to 1 in "
+         "get_normalized_density; log_scale: log1p(n)/log1p(max_per_cell) instead of n/max_per_cell. Call after reset, "
+         "before stepping (the constructor argument _max_contamination_value sets the initial cap).")
+    .def_property_readonly("max_per_cell", &SIMULATOR::get_max_per_cell)
+    .def_property_readonly("density_log", &SIMULATOR::get_density_log)
     .def("get_source_position", &SIMULATOR::get_source_position)
     .def_readonly("wind_mean", &SIMULATOR::wind_mean, byref)
     .def_property_readonly("step_count", &SIMULATOR::step_count)

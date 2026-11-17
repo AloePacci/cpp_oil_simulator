@@ -110,6 +110,8 @@ The `oilspillsim` extension exposes a class named `oilspillsim` (C++ type `SIMUL
       - Set the current wind (2,). With `also_mean` it also becomes the prevailing wind of the variable-wind process.
     - `set_source_fuel(fuel: int)` *(0.1.0)*
       - Remaining fuel of the sources. A finite release stops when it runs out; with a large `_flow`, an instantaneous puff.
+    - `set_density(max_per_cell: int, log_scale: bool = False)` *(0.1.0)*
+      - Crowding cap per cell and value that maps to 1 in `get_normalized_density`; `log_scale` gives `log(1+n)/log(1+max_per_cell)`. A larger cap with log scale avoids the saturation of large spills (e.g. `set_density(50, True)`).
     - `get_source_position() -> numpy.ndarray` *(0.1.0)*
       - Continuous position (2 × number_of_sources) of the sources (they can move, see `source_speed` / `source_drift`).
 
@@ -122,6 +124,7 @@ The `oilspillsim` extension exposes a class named `oilspillsim` (C++ type `SIMUL
     - `wind_speed` — wind speed value or field used in the model (array(2)). Changes every step when `wind_variability > 0`.
     - `wind_mean` *(0.1.0)* — prevailing wind of the variable-wind process (array(2)).
     - `step_count`, `remaining_fuel`, `particle_count` *(0.1.0)* — steps since `reset`, fuel left, particles alive.
+    - `max_per_cell`, `density_log` *(0.1.0)* — current density settings (see `set_density`).
 
 ### `set_dynamics` options
 

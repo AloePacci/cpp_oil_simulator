@@ -7,7 +7,12 @@
 #include "map.h"
 #include <Eigen/Dense>
 #include <random>
+#include <cmath>
+#include <algorithm>
 #ifdef _WIN32
+#ifndef NOMINMAX
+#define NOMINMAX      // windows.h defines min/max macros that break std::min / std::max (MSVC error C2589)
+#endif
 #include <windows.h>
 #else
 #include <unistd.h>
@@ -39,20 +44,20 @@ private:
     ////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////ENVIRONMENT PARAMETERS///////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
-    bool done;
+    bool done = false;
     int random_seed;
-    int im0;
-    int im1;
+    int im0 = 0;
+    int im1 = 0;
     float flow_remainder=0;
 
 
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////ENVIRONMENT VARIABLES///////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
-    float contamination_speed;
-    float spill_directions;
-    float particles_speeds;
-    bool init;
+    float contamination_speed = 0;
+    float spill_directions = 0;
+    float particles_speeds = 0;
+    bool init = false;   // was uninitialised: reading it in reset() was undefined behaviour (macOS CI: "Environment not initiated!")
     int step_counter =0;
     // initialising standard deviation to 1.0 
     double sigma = 1.0; 
@@ -94,7 +99,8 @@ private:
     double evaporable_fraction = 1.0;     // fraction of new particles that can decay (light fraction of the oil)
     double diffusion_dt_ref = 0.3;        // > 0: random walk scaled by sqrt(dt / diffusion_dt_ref) (Brownian); <= 0: legacy
     double emission_dt_ref = 0.3;         // > 0: emission per unit TIME (flow*dt/emission_dt_ref particles/step); <= 0: legacy per step
-    bool fix_removal_skip = true;         // true: a particle removed at the border no longer makes the next one skip its step
+    bool fix_removal_skip = true;
+    bool density_log = false;             // get_normalized_density: log1p(n)/log1p(max) instead of n/max (set_density)         // true: a particle removed at the border no longer makes the next one skip its step
 
     Eigen::MatrixXd source_pos;           // continuous source positions (2 x n), source_points = floor(source_pos)
     Eigen::VectorXd source_heading;       // heading of each moving source (rad)
@@ -119,6 +125,9 @@ public:
     void warmup(int n_steps);             // run n_steps simulator steps (start the spill before the mission)
     void set_wind(Eigen::VectorXd w, bool also_mean = true);
     void set_source_fuel(int fuel);       // finite release (puff): emission stops when the fuel runs out
+    void set_density(int max_per_cell, bool log_scale);   // crowding cap per cell + normalisation of the density map
+    int get_max_per_cell() const { return max_contamination_value; }
+    bool get_density_log() const { return density_log; }
     Eigen::MatrixXd get_source_position() const { return source_pos; }
 
     Eigen::MatrixXi source_points ;

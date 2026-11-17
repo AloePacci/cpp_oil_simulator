@@ -142,6 +142,20 @@ def test_finite_release_and_reset_args():
     assert np.allclose(np.array(s.wind_mean), [0.5, -0.2])
 
 
+def test_density_scale():
+    s = make(seed=8, _flow=15)
+    s.warmup(200)
+    lin = np.array(s.get_normalized_density())
+    assert s.max_per_cell == 5 and not s.density_log
+    s2 = make(seed=8, _flow=15)
+    s2.set_density(50, True)
+    s2.warmup(200)
+    d = np.array(s2.get_normalized_density())
+    assert s2.max_per_cell == 50 and s2.density_log and d.max() <= 1 + 1e-9
+    spill_lin, spill_log = lin[lin > 0.05], d[d > 0.05]
+    assert (spill_log >= 0.99).mean() < (spill_lin >= 0.99).mean(), "log scale + cap 50 must saturate less"
+
+
 if __name__ == "__main__":
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     for t in tests:

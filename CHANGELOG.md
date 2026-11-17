@@ -53,6 +53,11 @@ signature of 0.0.3 (given sources, currents, wind and particles) is unchanged an
   wrapper.
 - **`set_wind(wind, also_mean=True)`** — set the current wind; with `also_mean` it also becomes the prevailing wind
   of the variable-wind process.
+- **`set_density(max_per_cell, log_scale=False)`** — crowding cap per cell (a full cell pushes newcomers to a free
+  neighbour) and the value that maps to 1 in `get_normalized_density`; `log_scale` returns `log(1+n)/log(1+max)`
+  instead of `n/max`. With the default cap of 5 and a linear scale, a continuous spill saturates (30–60 % of the spill
+  cells at 1) and the oil piles against the coast into a solid slab; with `set_density(50, True)` the saturated share
+  drops to 3–14 % and the field keeps its thickness gradient. Read back with `max_per_cell` / `density_log`.
 - **`set_source_fuel(fuel)`** — finite release: emission stops when the fuel runs out (with a large `_flow`, an
   instantaneous puff).
 - **New read-only attributes and properties**: `wind_mean`, `step_count`, `remaining_fuel`, `particle_count`, and the
@@ -60,6 +65,18 @@ signature of 0.0.3 (given sources, currents, wind and particles) is unchanged an
 
 ### Fix
 
+- **Uninitialised `init` flag (undefined behaviour).** `bool init` had no initial value and `reset()` read it
+  (`if(!init) init = true;`). Depending on the compiler and the garbage byte, `!init` could be true after `reset()`,
+  so `step()` / `warmup()` threw "Environment not initiated!" (seen on the macOS CI in `test_decay_half_life`).
+  `init`, `done` and the other unused scalars are now initialised, and `reset()` sets `init = true`. The tests also
+  pass under UBSan (`-fsanitize=undefined`).
+- **Windows (MSVC) build.** `<windows.h>` defines `min` / `max` macros that broke `std::max` (error C2589).
+  `NOMINMAX` is now defined before every `<windows.h>` include (`map.h` and `basic_simulator.h`), `<cmath>` /
+  `<algorithm>` are included explicitly, and the
+  log-density code no longer uses `std::max`.
+- **Conda recipe.** conda-build builds without isolation, so the PEP 517 backend must be a host requirement:
+  `setuptools` and `wheel` were added to `host`, and the build script uses `pip install . --no-deps --no-build-isolation`.
+  Before this, the build failed with "BackendUnavailable: Cannot import 'setuptools.build_meta'".
 - **Seed reproducibility independent of the compiler.** `v << rand(gen), rand(gen)` (Eigen comma initialiser) has an
   evaluation order that depends on the compiler and C++ standard: the published 0.0.1 wheel (GCC 10) put the first draw
   in the second component, a GCC 11 build did the opposite, so the same seed gave a different spill. The draws are

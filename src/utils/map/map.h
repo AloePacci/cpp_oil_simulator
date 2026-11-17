@@ -6,6 +6,9 @@
 #include <cassert>
 #include <fstream>
 #ifdef _WIN32
+#ifndef NOMINMAX
+#define NOMINMAX      // windows.h defines min/max macros that break std::min / std::max (MSVC error C2589)
+#endif
 #include <windows.h>
 #else
 #include <unistd.h>

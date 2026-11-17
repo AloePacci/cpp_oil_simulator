@@ -80,9 +80,7 @@ void SIMULATOR::reset(int _seed, Eigen::MatrixXi _source_points_pos, Eigen::Matr
     #endif
     }
     /* RESET THE ENV VARIABLES*/
-    if(!init){
-        init=true;
-    }
+    init = true;
 
     done=false;
     step_counter =0;
@@ -390,6 +388,13 @@ Eigen::MatrixXd SIMULATOR::get_normalized_density(bool gaussian){
             density_d(point.first,point.second)/=kernel;
         }
     }
+    if (density_log){   // logarithmic scale: log(1 + n) / log(1 + max), n = (smoothed) particles per cell
+        double lm = std::log1p((double)max_contamination_value);
+        for (auto point: mapa->visitable){
+            double n = density_d(point.first,point.second) * (double)max_contamination_value;
+            density_d(point.first,point.second) = std::log1p(n > 0.0 ? n : 0.0) / lm;
+        }
+    }
     return density_d;
 }
 
@@ -493,6 +498,14 @@ void SIMULATOR::set_wind(Eigen::VectorXd w, bool also_mean){
 void SIMULATOR::set_source_fuel(int fuel){
     if (fuel < 0) throw std::runtime_error("set_source_fuel: fuel must be >= 0");
     source_fuel = fuel;
+}
+
+void SIMULATOR::set_density(int max_per_cell, bool log_scale){
+    // max_per_cell: crowding cap (a full cell pushes newcomers to a free neighbour) AND the value that maps to 1.
+    // A larger cap keeps the thickness of the slick (less saturation); log_scale spreads the low concentrations.
+    if (max_per_cell < 1) throw std::runtime_error("set_density: max_per_cell must be >= 1");
+    max_contamination_value = max_per_cell;
+    density_log = log_scale;
 }
 
 void SIMULATOR::step_wind(){

@@ -45,25 +45,26 @@ jobs:
       - name: Install Eigen
         run: conda install -c conda-forge eigen
 
-      - name: Setup MSVC
-        uses: ilammy/msvc-dev-cmd@v1
-
-      - name: Remove Git for Windows from PATH (Windows)
+      # No "Setup MSVC" step here: conda-build activates MSVC itself ({{ compiler('cxx') }} -> vcvars64.bat). Running
+      # ilammy/msvc-dev-cmd first doubled PATH / INCLUDE / LIB and cmd.exe failed with "The input line is too long".
+      - name: Build (Windows)
         if: runner.os == 'Windows'
         run: |
-          echo "##[group]Fix PATH"
-          echo "PATH before: $PATH"
-          export PATH=$(echo "$PATH" | tr ':' '\n' | grep -v '/usr/bin' | paste -sd ':' -)
-          echo "PATH after: $PATH"
-          echo "##[endgroup]"
-          conda build conda.recipe
+          # minimal environment for cmd.exe / vcvars64.bat: the runner PATH alone is several thousand characters
+          C=$(cygpath -u "$CONDA")
+          export PATH="$C/condabin:$C/Scripts:$C/Library/bin:$C:/c/Windows/System32:/c/Windows:/c/Windows/System32/Wbem:/c/Windows/System32/WindowsPowerShell/v1.0"
+          unset INCLUDE LIB LIBPATH
+          conda build conda.recipe --python ${{ matrix.python-version }} --output-folder conda-out
 
       - name: Build
         if: runner.os != 'Windows'
-        run: conda build conda.recipe
+        run: conda build conda.recipe --python ${{ matrix.python-version }} --output-folder conda-out
 
       - name: Install
-        run: conda install -c ${CONDA_PREFIX}/conda-bld/ oilspillsim
+        # --python above: conda-build runs from base (its own Python, e.g. 3.14) and would otherwise build for that version
+        # conda-build lives in base, so the package is NOT in ${CONDA_PREFIX}/conda-bld of the test env: build into a
+        # fixed folder of the workspace (conda-build indexes it, so it is a valid local channel) and install from there
+        run: conda install -y -c ./conda-out oilspillsim
 
       - name: Test
         run: python tests/test.py
